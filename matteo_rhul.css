@@ -1,0 +1,82 @@
+/**
+theme with RHUL colors
+ */
+
+/*-- scss:defaults --*/
+
+// Include theme-specific fonts
+@import url(https://fonts.googleapis.com/css?family=News+Cycle:400,700);
+@import url(https://fonts.googleapis.com/css?family=Lato:400,700,400italic,700italic);
+
+// Override theme settings
+$font-family-sans-serif: "Corbel", sans-serif !default;
+$body-color: #202A30 !default;
+$presentation-heading-font: "Corbel", sans-serif !default;
+$presentation-heading-color: #EB641E !default;
+$presentation-heading-text-shadow: none !default;
+$presentation-heading-text-transform: none !default;
+$body-bg: #fff !default;
+$link-color: #D70B90 !default;
+$selection-bg: rgba(0, 0, 0, 0.99) !default;
+
+$overlayElementBgColor: 0, 0, 0 !default;
+$overlayElementFgColor: 240, 240, 240 !default;
+
+// Change text colors against dark slide backgrounds
+$dark-bg-text-color: #fff !default;
+
+$presentation-font-size-root:	24px;
+$presentation-font-smaller:	0.4;
+$presentation-line-height:	1;
+$presentation-h1-font-size:	1.5em;
+$presentation-h2-font-size:	1.2em;
+$presentation-h3-font-size:	1em;
+$presentation-h4-font-size:	0.8em;
+
+$border-width:	1px;
+$border-radius:	2px;
+$presentation-block-margin:	3px;
+
+
+
+/* ==== Dark code blocks on dark slides (.inverse) ==== */
+:root {
+  --dark-slide-bg: #202A30;
+  --dark-code-bg: #202A30;
+  --dark-code-fg: #F2F2F2;              /* your brighter base text */
+  --dark-code-muted: #E8E8E8;
+}
+
+/* Pre/code containers on dark slides */
+.reveal section.inverse pre,
+.reveal section.inverse code,
+.reveal section.inverse pre code,
+.reveal section.inverse .sourceCode,
+.reveal section.inverse .sourceCode pre {
+  background: var(--dark-code-bg) !important;
+  color: var(--dark-code-fg) !important;
+  box-shadow: none !important;
+}
+
+/* Inline code on dark slides */
+.reveal section.inverse code:not(pre code) {
+  background: rgba(255,255,255,.06) !important;
+  color: var(--dark-code-fg) !important;
+  padding: .1em .25em;
+  border-radius: .2em;
+}
+
+/* Token colors (Pandoc/Quarto classes), scoped to dark slides */
+.reveal section.inverse code span.kw,
+.reveal section.inverse code span.cf  { color: #ffab70 !important; }
+.reveal section.inverse code span.fu,
+.reveal section.inverse code span.bu  { color: #8ad5ff !important; }
+.reveal section.inverse code span.st  { color: #a5d6ff !important; }
+.reveal section.inverse code span.dv  { color: #b9f27c !important; }
+.reveal section.inverse code span.op  { color: var(--dark-code-fg) !important; }
+.reveal section.inverse code span.va,
+.reveal section.inverse code span.at,
+.reveal section.inverse code span.an  { color: #ffd479 !important; }
+.reveal section.inverse code span.co  { color: #8aa1b1 !important; font-style: italic; }
+
+

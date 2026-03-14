@@ -1,0 +1,26 @@
+---
+title: "Value learning model"
+author: "Matteo Lisi"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+The model assumes that on every trial $t$ the child makes a choice action $a \in \left\{1,2 \right\}$ and obtains a "reward" $r \in \left\{0,1 \right\}$. 
+It is assumed that the participant maintains and updates their estimate of the value (that is the expected, long-run, reward) of each choice option --- the so-called $Q$-values. These $Q$-values are updated after each choice according to 
+$$
+Q_{t+1} \left( a \right) = Q_{t} \left( a \right) + \eta \, \delta_t
+$$
+where $\eta$ is the learning rate and $\delta_t$ is the reward prediction error at trial $t$, calculated as 
+$$
+\delta_t = r_t - Q_{t} \left( a \right)
+$$
+A logistic sigmoid (softmax) function is used to transform the $Q$-values of each symbol into the probability that the participant choose it in a given trial $t$
+$$
+P_t \left( a \right) = \frac{e^{\beta \, Q_{t} \left( a \right)}}{\sum_i^2 e^{\beta \, Q_{t} \left( i \right)}}
+$$
+where $\beta$ is an "inverse temperature" parameter that controls the randomness of the choices.
