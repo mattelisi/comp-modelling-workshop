@@ -1,0 +1,251 @@
+---
+title: "Computational cognitive modelling"
+subtitle: "<br>_PGR training_<br>"
+author: "Matteo Lisi"
+date-released: 2025-09-08
+format:
+  revealjs:
+    logo: img/logo-small-london-cmyk.jpg
+    incremental: true  
+    auto-stretch: false
+    code-fold: false   # don’t fold
+    code-line-numbers: false
+    echo: true         # show code by default
+    theme: [default, matteo_rhul.css]
+editor: source
+filters: [bg_style.lua]
+---
+
+## What is a "model"?
+
+ 
+
+-   A *story about the world* — a simplified account of some phenomenon
+-   Models exist on a spectrum: from informal verbal theories to precise mathematical formalisms
+
+::: notes
+Open with the intuition that everyone already uses models — when you say "anxiety impairs working memory", that's a model. The question is how explicit and testable we make it.
+:::
+
+------------------------------------------------------------------------
+
+## Why "computational"?
+
+ 
+
+-   Computational modelling means expressing a verbal theory in a formal way, often using mathematics or probability theory.
+-   *Turning a theory into equations immediately reveals where the theory was underspecified or internally inconsistent*
+
+::: notes
+Good example: "attention is a limited resource" sounds coherent until you try to write it down — limited how? Shared across what? Depleted on what timescale?
+:::
+
+------------------------------------------------------------------------
+
+## Marr's *three levels of description* {background-color="#202A30"}
+
+ 
+
+::::: columns
+::: {.column width="80%"}
+| Level | Question | Example |
+|------------------------|------------------------|------------------------|
+| **Computational** | What problem is being solved, and why is this a sensible problem to solve? | *Object recognition as Bayesian inference* |
+| **Algorithmic** | *How* is it computed? What representations and processes are used to solve the problem? | *Extracting features and combining them across a processing hierarchy, e.g. a convolutional neural network* |
+| **Implementational** | How are these processes physically realised in the brain or nervous system? | *V1 simple cells, neurons and circuits in the ventral visual stream, etc.* |
+:::
+
+::: {.column width="20%"}
+![David Marr, 1945-80](img/marr.jpeg){fig-align="right"}
+:::
+:::::
+
+------------------------------------------------------------------------
+
+##  {background-color="#202A30"}
+
+> *"Trying to understand perception by studying only neurons is like trying to understand bird flight by studying only feathers; it just cannot be done. To understand bird flight, you need to understand aerodynamics, only then can one make sense of the structure of feathers and the shape of wings. Similarly, you can't reach an understanding of why neurons in the visual system behave the way they do, just by studying their anatomy and physiology."*
+
+> *"The nature of the computations that underlie perception depends more upon the computational problems that have to be solved than upon the particular hardware in which their solutions are implemented."*
+
+ 
+
+Marr, 1982
+
+------------------------------------------------------------------------
+
+## Computational models & levels of description
+
+-   In practice, models rarely sit neatly at just one of Marr's levels.
+-   Many models combine elements from multiple levels of description.
+    -   **Example — Bayesian models of cognition:** Formulated at the computational level (normative analysis of the problem). When augmented with capacity constraints (memory, attention), they begin to constrain the *algorithms* that can viably solve the task
+    -   **Example — Neural networks:** Superficially algorithmic, but architectural choices (attention, recurrence, modularity) often reflect computational and/or implementational constraints.
+
+------------------------------------------------------------------------
+
+## Computational Cognitive Modelling
+
+-   Uses mathematics and probability theory to build explicit accounts of behaviour
+-   Typically operates at the computational and algorithmic levels — the implementation is deliberately abstracted away
+-   This yields lean, tractable models that can be:
+    -   Fit to participant data (parameter estimation)
+    -   Used to make inferences about latent psychological variables
+    -   Compared formally to adjudicate between theories
+
+------------------------------------------------------------------------
+
+## Decisions under uncertainty
+
+::::: columns
+::: {.column width="70%"}
+-   Many consequential decisions involve options whose values are not known in advance
+-   Value estimates learned from reward feedback, used to guide later choices.
+-   Problem: *exploration vs. exploitation*.
+:::
+
+::: {.column width="30%"}
+![](img/Las_Vegas_slot_machines.jpg){fig-align="right"}
+:::
+:::::
+
+------------------------------------------------------------------------
+
+## The Two-Armed Bandit
+
+::::: columns
+::: {.column width="70%"}
+-   A minimal paradigm that isolates this decision problem
+-   Two options, each delivering reward with some (unknown) probability
+:::
+
+::: {.column width="30%"}
+:::
+:::::
+
+------------------------------------------------------------------------
+
+## The Two-Armed Bandit
+
+{{< video ./files/demo.mp4 >}}
+
+------------------------------------------------------------------------
+
+## The Two-Armed Bandit
+
+:::::: columns
+:::: {.column width="70%"}
+::: nonincremental
+-   A minimal paradigm that isolates this decision problem:
+-   Two options, each delivering reward with some (unknown) probability
+:::
+
+-   A verbal theory such as "people learn from rewards" is vague.
+-   A computational model forces us to specify: what is represented internally, how learning happens and how it drives choice.
+-   $Q$-learning is an algorithm that specify update and choice rules.
+::::
+
+::: {.column width="30%"}
+![](img/task_selected.png){fig-align="right"}
+:::
+::::::
+
+------------------------------------------------------------------------
+
+## $Q$-Learning as an algorithmic model {.scrollable background-color="#202A30"}
+
+-   <span style="color:orange;">[**Computational goal**]{style="text-decoration: underline;"}</span>: maximise cumulative reward given incomplete information about option values
+-   The agent must maintain *beliefs* about option values and update them as evidence accrues
+-   Normative solution: treat value estimation as Bayesian inference, balance exploration and exploitation optimally. **_This is computationally expensive and humans don't do it_**
+
+ 
+
+-   <span style="color:orange;">[**Algorithmic approximation**]{style="text-decoration: underline;"}</span>: rather than tracking full probability distributions over values, maintain a single *scalar estimate* $Q$ for each option
+
+-   Update rule after observing outcome *r*: $$Q_{t+1}(A) = Q_t(A) + \alpha \cdot \underbrace{(r_t - Q_t(A))}_{\text{prediction error}}$$
+
+-   $\alpha$ (learning rate): how strongly does new evidence revise the current estimate?
+
+-   This is a local, incremental, memory-cheap algorithm — plausible for a biological agent
+
+-   Knowing $Q$ values doesn't fully determine behaviour — we also need a **decision policy**
+
+-   Softmax (logistic) choice rule: $$P(\text{choose } A) = \frac{e^{\beta \cdot Q(A)}}{e^{\beta \cdot Q(A)} + e^{\beta \cdot Q(B)}}$$
+
+-   $\beta$ (inverse temperature): how deterministically does the agent exploit its current estimates?
+
+    -   $\beta \rightarrow 0$ : random exploration
+    -   $\beta \rightarrow \infty$ : *greedy* exploitation
+
+-   Together, $\alpha$ and $\beta$ give us a **two-parameter generative model of choice sequences**
+
+ 
+
+-   <span style="color:orange;">[**Implementation?**]{style="text-decoration: underline;"}</span>: We are not modelling the neural machinery here, although one could ask how such learning signals are realised in the brain (e.g. the prediction error term has been linked to dopaminergic signalling).
+
+------------------------------------------------------------------------
+
+## Fitting models to data {.scrollable}
+
+-   The model generates predictions about *which choices a participant should make on every trial*
+-   We can invert this: given the choices they *actually* made, what values of $\alpha$ and $\beta$ make those choices most likely? → **Maximum Likelihood Estimation (MLE)**
+-   This is useful because:
+    -   α and β are not directly observable — the model lets us infer them
+    -   They are psychologically interpretable: impaired learning rate in depression, elevated exploration in mania, etc.
+    -   We can compare models to test theoretical claims
+
+ 
+
+::: fragment
+
+**Some notes on MLE:**
+
+-   MLE is popular because provides *consistent, asymptotically efficient and unbiased* estimates of the models parameter.
+-   MLE requires use to be able to compute the *likelihood* (the probability of the data under the model) which is not always feasible.
+-   In some cases it may be possible to approximate it via sampling, resulting in a 'noisy' likelihood; specific algorithms that can handle this well, e.g. [Bayesian Adaptive Direct Search (BADS), Acerbi & Ma 2017](https://www.cns.nyu.edu/malab/static/files/publications/2017_Acerbi_Ma.pdf)
+-   If even noisy approximations of likelihood are unfeasible/impractical, it is usually possible to simulate data from the model using approaches like Approximate Bayesian Computation (ABC)
+
+
+:::
+
+------------------------------------------------------------------------
+
+## Today's plan
+
+-   We will implement, simulate, and fit a Q-learning model to choice data from a 2-armed bandit task
+-   Approaches to assess uncertainty around parameter estimates (Laplace approximation, parametric bootstrapping)
+-   Parameter recovery analysis
+-   Model comparison via information criteria (AIC, BIC) and cross-validation
+
+<!-- ## What is a "model"? -->
+
+<!-- - a story about the world -->
+
+<!-- ## Why "computational" -->
+
+<!-- - Formalising a verbal model or a theory into equations reveal where the model/theory was underspecified -->
+
+<!-- ## Marr's 3 levels of description -->
+
+<!-- - Computational -->
+
+<!-- - ALgorithmic -->
+
+<!-- - Implementational -->
+
+<!-- ##  -->
+
+<!-- - Often models can be seen as having elements, or incorporating constraints from different levels, rather than exclusively sitting at one level of description -->
+
+<!-- - Example: Bayesian models of cognition/perception are typically formulated at the computational level (they are analysis of the problem). These are normative models that do not often provide a good description of behaviour, so we can adapt them by augmenting them with further constraints (e.g. memory or attention capacity). As we increase constraints, the model will also increasingly constraint the type of algorithms that can viable solve the problem under the constraints -->
+
+<!-- - Example 2: neural network can be seen as 'implementational' level, but their design also incorporate elements from algoritmic or computational level -->
+
+<!-- # Computational cognitive models -->
+
+<!-- - we use math and probability theory to formulate computational/algorithmic accounts of human behaviour -->
+
+<!-- - Often not directly concerned with the implementation. The key advantage is that this give us lean models that we can easily fit onto participant's data, and use them to infer something about the participants. provide us with a with which we can make sense of behaviour -->
+
+<!-- Distinct from neuroAI: Marr's argument tells us that we need all levels to make sense of a complex system like the brain.  -->
+
+<!-- - it is unclear whether there is a priviledged level of description, the answer tend to depends on who you ask. -->

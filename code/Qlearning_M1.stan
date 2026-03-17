@@ -1,14 +1,14 @@
 data {
   int<lower=1> J;                    // n block
-  int<lower=1> N[J];                 // n trials x block
+  array[J] int<lower=1> N;           // n trials x block
   int<lower=1> maxN;                 // max number of trials
-  int<lower=-99,upper=1> C[J,maxN];    // choice (of option with high reward prob)
-  int<lower=-99,upper=1> R[J,maxN];    // feedback (positive or negative)
+  array[J, maxN] int<lower=-99, upper=1> C;   // choice (of option with high reward prob)
+  array[J, maxN] int<lower=-99, upper=1> R;    // feedback (positive or negative)
 }
 
 transformed data {
-  real initQ[2];  // initial Q values for the 2 options
-  int Nobs;       // number of total observations
+  array[2] real initQ; // initial Q values for the 2 options
+  int Nobs;            // number of total observations
   
   initQ = rep_array(0.5, 2);
   Nobs = sum(N);
@@ -30,9 +30,9 @@ model {
   // block and trial loop
   for (i in 1:J) {
 
-    real Q[2];  // Q values (expected value)
-    real VD;    // value difference
-    real PE;    // prediction error
+    array[2] real Q;  // Q values (expected value)
+    real VD;          // value difference
+    real PE;          // prediction error
 
     Q = initQ;
 

@@ -24,77 +24,72 @@ d_s1 <- read_csv("../data/dAA13.csv")
 
 > Goal: Load the example participant dataset, write down the Q-learning model, fit it with `optim()`, inspect approximate uncertainty, then simulate from the fitted model and use parametric bootstrap to get another estimate of parameter variability.
 
-This worksheet follows the teaching script in [`rough_script.R`](/mnt/sda2/matteoHDD/git_local_HDD/computational-cognitive-modelling-workshop/code/rough_script.R) and keeps the code exactly as written there. The code is intentionally explicit rather than optimized, so that each modelling step remains easy to inspect.
+#### Task
+
+Participants completed a 2-armed bandit task[^task]. In this task participants have to make, in each trial, a choice between two symbols. Each symbol is attached to a high (0.7) or low (0.3) probability of giving a reward, however participants do not know which symbol has a high probability, and have to figure it out by trial and errors, so as to maximise their overall rewards. The video illustrates a few trials of this task:
+
+[^task]: In the experiment responses were made via eye movements, and we investigated how learning the value of choice options influenced the dynamics of saccadic eye movements (we will not consider eye movement analyses here).
+
+{{< video ../files/demo.mp4 >}}
 
 #### Setup
 
-The script begins by clearing the workspace, setting the working directory to the script location, and loading the prepared dataset for participant `AA13`.
+Load the dataset for participant `AA13`.
 
-```{r, eval=FALSE}
-# prepare data for modelling workshop
-
-rm(list=ls())
-hablar::set_wd_to_script_path()
+```{r}
+# 
 library(tidyverse)
 
-# d <- read_csv("../task/analysis/analysis_all_data.csv")
-# str(d)
-# 
-# # general prep
-# d <- d %>%
-#   mutate(PID = str_sub(edf_file, 1, 4)) %>%
-#   rename(session_id = participant_id) %>%
-#   mutate(win=ifelse(win==-1, NA, win),
-#          P=ifelse(win==-1, NA, P)) %>%
-#   filter(!is.na(win))
-# 
-# 
-# # subset AA04
-# d_s1 <- d %>%
-#   filter(PID == "AA13") %>%
-#   select(trial_n, block_n, tar_choice, P, win, prob_1, prob_2, session, PID)
-# 
-# write_csv(d_s1, file="dAA13.csv")
-
-# d_stan <- prep_stan_data(unique(d_s1$PID), data=d_s1)
-
-
+# load data
 d_s1 <- read_csv("../data/dAA13.csv")
+
+# examine variables
+str(d_s1)
 ```
+Participant choices are stored in several ways: `tar_choice` indicate whether participants chose the symbol on the right (`1`) or left (`2`); and `prob_1` and `prob_2` are the reward probabilities. `P` is the reward probability of the chosen symbol, and `win` is a binary indicator of whether a reward (coin) was obtained.
 
-In the workshop dataset, choices are recoded block-by-block as:
+In the modelling code below choices are recoded as follow:
 
-- `C = 1`: the participant chose the option with the higher reward probability on that trial.
-- `C = 0`: the participant chose the option with the lower reward probability on that trial.
+-   `C = 1`: the participant chose the option with the higher reward probability on that trial (in trials where `P > 0.5`).
+-   `C = 0`: the participant chose the option with the lower reward probability on that trial (`P < 0.5`).
 
 ::: callout-tip
 #### Q-learning model formulation
 
-Following the notes in [`learning_model_definition.Rmd`](/mnt/sda2/matteoHDD/git_local_HDD/computational-cognitive-modelling-workshop/code/learning_model_definition.Rmd), the learner maintains values for the two options:
+The model assumes that on every trial $t$ the participant makes a choice action $a \in \left\{1,2 \right\}$ and obtains a "reward" $r \in \left\{0,1 \right\}$. 
+
+To guide choices, the participant maintains and updates their estimate of the value (that is the expected, long-run, reward) of each choice option --- the so-called $Q$-values. These $Q$-values are updated after each choice according to 
 
 $$
 Q_{t+1}(a_t) = Q_t(a_t) + \eta \, \delta_t
 $$
 
-with prediction error
+where $\delta_t$ is the _reward prediction error_:
 
 $$
 \delta_t = r_t - Q_t(a_t).
 $$
 
-In this script, the choice probability for the high-reward option is written as a logistic function of the value difference:
+In this script, the choice probability for the high-reward option is written as a logistic (also called _softmax_) function of the value difference:
 
 $$
-p_t = P(C_t = 1) = \frac{1}{1 + \exp\left[-\beta_{\mathrm{temp}}\left(Q_t(2)-Q_t(1)\right)\right]}.
+p_t = P(C_t = 1\mid Q_t) = \frac{1}{1 + \exp\left[-\beta_{\mathrm{temp}}\left(Q_t(2)-Q_t(1)\right)\right]}.
 $$
 
-At the start of each block the values are reset to
+Thus the model has **2 free parameters** to be estimated:
+
+- the **learning rate** $\eta$, which controls the extent to which values are influenced by new reward observations
+- the **inverse temperature** $\beta_{\mathrm{temp}}$, which control the variability of choices. When $\beta_{\mathrm{temp}}=0$, the choices are completely at random; and when $\beta_{\mathrm{temp}} \rightarrow \infty$ the softmax function becomes effectively a deterministic "hard" max function (corresponding to always choosing the options with highest Q-value).
+
+At the start of each block in the task new symbols are presented and the values are reset to
 
 $$
 Q_1(1) = Q_1(2) = 0.5.
 $$
 
-The log-likelihood across blocks is therefore
+The equations above allow calculating probability of participant choice in a trial given a set of parameters and the history of choices and rewards observed up until that trial. Specifically, if $P(C_t = 1\mid Q_t)$ is the probability of the participant choosing the high-reward-rate symbol at trial $t$, the probability of choosing the low-reward-rate symbol is then $P(C_t  =0\mid Q_t) = 1 - P(C_t = 1\mid Q_t)$.
+
+In order to estimate the model from the data we need to write down a function that compute the joint probability of all trials $t$ and blocks $j$. It is easier to work with the logarithm of the probability, usually referred to as the _log-likelihood function_. In this case this can be written as:
 
 $$
 \log L(\eta,\beta_{\mathrm{temp}}) =
@@ -103,8 +98,15 @@ C_{jt}\log p_{jt} + (1-C_{jt})\log(1-p_{jt})
 \right].
 $$
 
-The script minimizes the negative log-likelihood instead of maximizing the log-likelihood.
+(Note: the code presented below minimizes the negative log-likelihood instead of maximizing the log-likelihood.)
 :::
+
+#### Model fitting with maximum likelihood estimation (MLE)
+
+In order to fit the model to participants data we need 2 ingredients: a function that gives the probability of the data under the model (and a given set of parameter values); and a numerical optimizer algorithm that can find the maximum of the function (here we will use the ones build in with the R function `optim()`).
+
+It is easier and numerically more stable to work with the logarithm of the probability of the data — the so-called **log-likelihood** function. Additionally
+
 
 ##### 1) Negative log-likelihood
 
@@ -190,17 +192,30 @@ fit <- optim(
 )
 
 fit
+```
 
+The field `$par` report the MLE estimates of our two parameters
+
+-   `eta` ($\eta$) controls how strongly new outcomes update the chosen value.
+-   `beta_temp` ($\beta_{\mathrm{temp}}$) controls how consistently choices track the current value difference.
+
+
+##### Computing standard errors of model parameters via Laplace approximation
+
+Note that we also asked `optim()` to return the Hessian matrix (by setting `hessian = TRUE`). The Hessian is a square matrix of second-order partial derivatives of the log-likelihood function with respect to the parameters, evaluated at the maximum. Intuitively, it measures the curvature — or "peakedness" — of the log-likelihood surface around that maximum. A high curvature means the log-likelihood falls steeply as we move away from the peak, which gives us confidence that we have precise estimates of the parameters (i.e. estimates likely to be close to their unknown true values). Conversely, a flatter log-likelihood indicates that a broad range of parameter values yield similar log-likelihood scores; we are therefore more uncertain about how close our estimates are to the true values.
+
+We can use the Hessian to compute standard errors for the parameters via what is known as the Laplace approximation. More specifically, the Hessian returned by `optim()` is the Hessian of the _negative_ log-likelihood, which is referred to as the observed Fisher Information matrix. Inverting this matrix yields an estimate of the covariance matrix of the parameters, and taking the square roots of its diagonal entries gives the standard deviations of the sampling distributions of the parameters — that is, their standard errors. In R:
+
+```{r}
 # SE approximated
 sqrt(diag(solve(fit$hessian)))
 ```
 
-A useful question here is what the two parameters are doing:
 
-- `eta` controls how strongly new outcomes update the chosen value.
-- `beta_temp` controls how consistently choices track the current value difference.
 
 ##### 3) Simulate data from the fitted Q-learning model
+
+Another useful thing we can do with our model, is using it to simulate data. This can be valuable for several tasks: estimating robust estimates of uncertainty via bootstrapping, verifying that our implementation is correct and that we can recover the model parameters from simulated data exactly; or run simulation study to make decisions about study design (e.g. how many trials, participants etc.).
 
 ```{r}
 #### data simulation function
@@ -263,6 +278,8 @@ simulate_qlearning <- function(dat, eta, beta_temp) {
 }
 ```
 
+Example usage: simulate a dataset and fit the model on simualted data
+
 ```{r}
 d_sim <- simulate_qlearning(
   dat = d_s1,
@@ -285,6 +302,9 @@ fit_sim
 ```
 
 ##### 4) Parametric bootstrap
+
+By simulating and refitting the model many times, we can create a distribution of boostrapped parameter values, and use that to assess the uncertainty around our parameter estimates.
+
 
 ```{r}
 ############# paramtric bootstrapping
@@ -340,8 +360,8 @@ Compare the Hessian-based standard errors with the bootstrap-based ones. Do they
 
 This model has a single parameter, `lambda`, which controls random responding.
 
-- If `lambda = 0`, behaviour is deterministic: after a win the agent stays, after a loss it shifts.
-- If `lambda = 1`, behaviour is random, so stay and shift are both chosen with probability `0.5`.
+-   If `lambda = 0`, behaviour is deterministic: after a win the agent stays, after a loss it shifts.
+-   If `lambda = 1`, behaviour is random, so stay and shift are both chosen with probability `0.5`.
 
 Let `C_t` denote whether the high-reward option was chosen on trial `t`, and define a stay response as `C_t = C_{t-1}`. Then for trials after the first:
 
@@ -506,6 +526,8 @@ simulate_wsls <- function(dat, lambda) {
 
 ##### 3) Parameter recovery
 
+Having implemented a function to simulate the data from a model, it is straightforward to use it to verify how well the parameters of the model can be recovered from a dataset. This can be useful for example when we are planning a study, and can provide a principled way to determine how many trials we want each participant to complete.
+
 ```{r}
 ######################### parameter recovery
 
@@ -575,6 +597,10 @@ recov_sum
 ```
 
 ```{r}
+#| fig-height: 4
+#| fig-width: 4.6
+#| fig-align: center
+
 # parameter recovery plot
 
 ggplot(recov_sum, aes(x = lambda_true, y = lambda_mean)) +
@@ -603,7 +629,10 @@ Use the recovery plot to judge where the model is estimated well and where it be
 
 > Goal: Compute trial-by-trial predicted choice probabilities for both models, compare them against observed behaviour, then compare models using information criteria and leave-one-block-out cross-validation.
 
+
 ##### 1) Predicted probabilities and summary functions
+
+TO compute the predicted probabilities of participant choices, the approach is very similar to computing the log-likelihood (except that we do not transform log-transform probabilities, and sum across trials). Additionally, rather than computing the probability of the observed choices, we compute for each trial the probability of participants choosing the high-reward symbol.
 
 ```{r}
 ########################################### Plot models fit
@@ -762,6 +791,10 @@ for (tt in 1:length(sum_wsls$trial_n)) {
 ##### 3) Plot model fit
 
 ```{r}
+#| fig-height: 4
+#| fig-width: 5
+#| fig-align: center
+
 # make plots: Q-learning
 
 ggplot(sum_qlearning, aes(x = trial_n)) +
@@ -787,6 +820,14 @@ ggplot(sum_qlearning, aes(x = trial_n)) +
     title = "Observed choices and\nQ-learning predictions"
   ) +
   theme_classic()
+
+```
+
+
+```{r}
+#| fig-height: 4
+#| fig-width: 5
+#| fig-align: center
 
 # WSLS
 
@@ -816,6 +857,8 @@ ggplot(sum_wsls, aes(x = trial_n)) +
 ```
 
 ##### 4) Compare models with information criteria
+
+While in this case is quite clear from the plots which model provide a better fit, it is not always the case that we can visualise and compare the relative quality of model fit so clearly, and it can be useful to compare according to information criteria like the AIC (Akaike Information Criterion) or the BIC (Bayesian Information Criterion). Both of these criteria are based on the maximum of the log-likelihood function, and penalise it based on the complexity of the model (e.g. the number of free parameters), in order to minimise the risk of overfitting. 
 
 ```{r}
 ################################## model comparison
@@ -852,6 +895,8 @@ comparison_data <- data.frame(
 ```
 
 ##### 5) Compare models with leave-one-block-out cross-validation
+
+Cross-validation can be used to compare models as well. Both information criteria and cross-validation are ways to assess the quality of model fit to the data whilst controlling the risk of over-fitting. While AIC  ad BIC are quick approximations, cross-validation uses iterative splitting of datra into train and test set to evaluate how well the model can predict data out of its training sample.
 
 ```{r}
 ################################## model via cross-validation
@@ -973,6 +1018,13 @@ d_stan <- prep_stan_data(d_s1)
 
 The following chunk may take a while to run because it compiles and samples the Stan model.
 
+
+```{r, echo=FALSE}
+# saveRDS(stan_fit, "stan_fit.RDS")
+stan_fit <- readRDS("stan_fit.RDS")
+```
+
+
 ```{r, eval=FALSE}
 library(rstan)
 
@@ -982,11 +1034,20 @@ options(mc.cores = parallel::detectCores()) # indicate stan to use multiple core
 stan_fit <- stan(file = "Qlearning_M1.stan", data = d_stan, iter = 2000, chains = 4)
 ```
 
+```{r}
+print(stan_fit, probs = c(0.025, 0.5, 0.975),)
+```
+
+
 ##### 3) Compare posterior draws with the frequentist estimates
 
 Run the next chunks after `stan_fit` has been created.
 
-```{r, eval=FALSE}
+```{r}
+#| fig-height: 4
+#| fig-width: 8
+#| fig-align: center
+
 library(tidybayes)
 
 
@@ -1023,9 +1084,10 @@ ggplot(post_long, aes(x = value)) +
     y = "Posterior density",
     title = "Bayesian posterior and frequentist estimate",
     caption = "Dashed line = maximum likelihood estimate"
-  )
+  )+
+  theme_classic()
 ```
 
 #### Further task
 
-Compare the Bayesian posterior spread with the uncertainty summaries from the Hessian and the bootstrap. Where do the approaches agree, and where do they differ?
+Compare the Bayesian posterior spread with the uncertainty summaries from the Hessian and the bootstrap. 
