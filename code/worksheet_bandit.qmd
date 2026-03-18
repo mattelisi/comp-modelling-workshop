@@ -17,7 +17,12 @@ editor: source
 
 ```{r, include=FALSE}
 library(tidyverse)
-d_s1 <- read_csv("../data/dAA13.csv")
+
+# d_s1 <- read_csv("../data/dAA13.csv")
+
+# load from web
+d_s1 <- read_csv("https://raw.githubusercontent.com/mattelisi/comp-modelling-workshop/refs/heads/main/data/dAA13.csv")
+
 ```
 
 ## Activity 1 — Fitting a Q-learning model by maximum likelihood
@@ -41,7 +46,11 @@ Load the dataset for participant `AA13`.
 library(tidyverse)
 
 # load data
-d_s1 <- read_csv("../data/dAA13.csv")
+# d_s1 <- read_csv("../data/dAA13.csv")
+
+
+# load from web
+d_s1 <- read_csv("https://raw.githubusercontent.com/mattelisi/comp-modelling-workshop/refs/heads/main/data/dAA13.csv")
 
 # examine variables
 str(d_s1)
